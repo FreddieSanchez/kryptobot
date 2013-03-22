@@ -24,7 +24,6 @@ class kryptobot:
     self.streak = 0
     self.previous_winner = None
     self.score_pad = dict(zip(players,[[]for x in range(len(players))]))
-    print self.score_pad.keys()
     self.print_cards()
 
   def scores(self):
@@ -62,8 +61,6 @@ class kryptobot:
     *** 
     *** Cards: 1, 3, 7, 1 8 = 1
     *** "((((A + B) + C) + D) + E)"
-
-
     '''
     
     #tokenize string.   
@@ -78,9 +75,6 @@ class kryptobot:
     correct = (correct and solution and self.cards[5] == solution) 
     if correct: print "Correct!" 
     else: print "Not Correct!"
-
-
-   
     self.score_hand(player,correct)
 
   def solver(self,find_all=False):
@@ -142,12 +136,17 @@ class kryptobot:
       if stack[-1] == ")" or stack[-1] == "(":
         return None# error
       out.append(stack.pop())
+    return self.eval_postfix(out)
+
+  def eval_postfix(self,postfix):
+    ops = ["+","-","/","*"]
     ##########
-    # Evaluate the expression
+    # Evaluate a postfix expression expression
     ##########
     stack = []
+    out = postfix
     for o in out:
-      if o in operators.keys():
+      if o in ops:
         b = int(stack.pop())
         a = int(stack.pop())
         c  = self.calc(a,o,b)
