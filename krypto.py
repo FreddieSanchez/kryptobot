@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import sys, random,operator,re
+import sys, random,operator,re, itertools
 class deck:
   '''
 
@@ -12,17 +12,18 @@ class deck:
   cards = range(1,7) * 3 + range(7,11)*4 + range(11,18)*2 + range(18,26)
 
   def deal(self):
-      return random.sample(self.cards,6)
+    return [2,3,6,1,4,16]
+#      return random.sample(self.cards,6)
 
 class kryptobot:
   def __init__(self,players):
     self.players = players
     self.d = deck()
-    self.cards = self.d.deal()
-    self.hand = 1
+    self.cards = []
+    self.hand = 0
     self.streak = 0
     self.previous_winner = None
-    self.score_pad = dict(zip(players,[[0]for x in range(len(players))]))
+    self.score_pad = dict(zip(players,[[]for x in range(len(players))]))
     print self.score_pad.keys()
     self.print_cards()
 
@@ -32,7 +33,7 @@ class kryptobot:
 
   def __str__(self):
     namemaxlen = max(len(x) for x in self.players) + 1 
-    handlen = self.hand*8 + 9 # for the |
+    handlen = self.hand*8 + 8 + self.hand # for the |
     # header
     # .-----------------------.
     # |      | Hand X | Total |
@@ -50,7 +51,7 @@ class kryptobot:
         
     # footer
     # '---------'
-    out += "'"+"-"*((namemaxlen) + (self.hand*8)+9)+"'\n"
+    out += "'"+"-"*((namemaxlen) + handlen)+"'\n"
     return out
 
   def check_solution(self, player, solution):
@@ -63,12 +64,52 @@ class kryptobot:
     *** "((((A + B) + C) + D) + E)"
 
 
+    '''
+    
+    #tokenize string.   
+    tokens = re.findall(r"[\(\)\+\-\*\/]|\d+",solution)
+    numbers = sorted([int(x) for x in re.findall(r"\d+",solution)])
+    cards = sorted(self.cards[:5])
+    correct = True
+    if numbers != cards:
+      correct = False
+    else :
+      solution = self.eval_infix(tokens)
+    correct = (correct and solution and self.cards[5] == solution) 
+    if correct: print "Correct!" 
+    else: print "Not Correct!"
+
+
+   
+    self.score_hand(player,correct)
+
+  def solver(self,find_all=False):
+    ''' brute force approach to solving the krypto game.
+        takes every permucation of the cards and applies
+        every combination of operators and evaluates the expression.
+        If the expression evaluates to the 6th card, it is added to a list
+        of solutions.
+    '''
+    ops = ["+","-","/","*"]
+    expression = ""
+    solutions = []
+    for perm in itertools.permutations(self.cards[:5]):
+      for op in itertools.combinations_with_replacement(ops,4):
+        op = list(op)
+        op.append(" ")
+        expression = "".join([str(x) + str(y) for x,y in zip(perm,op)])
+        tokens = re.findall(r"[\(\)\+\-\*\/]|\d+",expression)
+        if self.eval_infix(tokens) == self.cards[5]:
+          solutions.append(expression)
+          if not find_all:
+            return solutions 
+    return solutions 
+
+  def eval_infix(self,tokens):
+    '''
     *** Will use the "Shunting Yard Algorithm"
     *** http://en.wikipedia.org/wiki/Shunting-yard_algorithm#The_algorithm_in_detail
     '''
-
-    #tokenize string.   
-    tokens = re.findall(r"[\(\)\d\+\-\*\/]",solution)
     # convert infix to postfix
     operators = {
       '+' : (0,"left"),
@@ -78,7 +119,6 @@ class kryptobot:
     }
     out = []
     stack = []
-    print tokens
     for token in tokens:
         if token.isdigit():
           out.append(token)
@@ -95,41 +135,31 @@ class kryptobot:
           while len(stack) > 0 and stack[-1] != "(":
               out.append(stack.pop())
           if len(stack) == 0:
-            return # Error mismatched.
+            return None# Error mismatched.
           if stack[-1] == "(":
             stack.pop()
     while len(stack):
       if stack[-1] == ")" or stack[-1] == "(":
-        return # error
+        return None# error
       out.append(stack.pop())
-    print out
     ##########
     # Evaluate the expression
     ##########
     stack = []
     for o in out:
       if o in operators.keys():
-        a = stack.pop()
-        b = stack.pop()
-        stack.append(self.calc(a,o,b))
+        b = int(stack.pop())
+        a = int(stack.pop())
+        c  = self.calc(a,o,b)
+        stack.append(c)
       elif o.isdigit():
         stack.append(o)
-    print stack
     if len(stack) > 1:
       print "Too many values on the stack!"
-      return # too many values on stack
-    correct = (self.cards[5] == int(stack.pop()))
-    if correct: print "Correct!" 
-    else: print "Not Correct!"
-
-
-   
-    self.score_hand(player,correct)
-    self.deal_next()
+      return None # too many values on stack
+    return int(stack.pop())    
 
   def calc(self,a,op,b):
-    a = int(a)
-    b = int(b)
     if op == "+":
       return a + b
     if op == "-":
@@ -138,6 +168,7 @@ class kryptobot:
       return a / b
     if op == "*":
       return a * b
+
   def score_hand(self,player,correct):
     ''':
     *** Score Keeping Rules:
@@ -149,8 +180,8 @@ class kryptobot:
     *** only and the hand is re-dealt for the remaining players. All players are then 
     *** eligible to score the next hand unless another error in "Kryptoing" occurs.
     '''
-    if correct: 
-      previous_score = self.score_pad[player][self.hand-1]
+    if correct:
+      if self.streak != 0: previous_score = self.score_pad[player][self.hand-1]
       if player == self.previous_winner:
         self.streak += 1
         score = self.streak * previous_score
@@ -161,21 +192,32 @@ class kryptobot:
     else:
         score = -1
         self.streak = 0
-    self.score_pad[player].append(score) 
+    for p in self.players:
+      if p == player:
+        self.score_pad[player].append(score) 
+      else:
+        self.score_pad[p].append(0) 
 
   def print_cards(self):
-    print " Cards: ",",".join([str(x) for x in self.cards])
+    print "Cards:",",".join([str(x) for x in self.cards])
 
   def deal_next(self):
     self.cards = self.d.deal()
     self.hand += 1
 
+  def game_over(self):
+    return (self.hand == 10)
+
 if __name__ == "__main__":
   p = ["Fred","JoeBob","LongAssName","bo"]
   k = kryptobot(p)
-  k.print_cards()
   print str(k)
-  k.check_solution("Fred","(3 * 4)+(8+2)")
+  while not k.game_over():
+    k.deal_next()
+    k.print_cards()
+    solution = raw_input()
+    k.check_solution("Fred",solution)
+    print k.solver()
+    print str(k)
   
-  print str(k)
 
