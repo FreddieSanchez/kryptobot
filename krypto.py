@@ -1,30 +1,37 @@
-#!/usr/bin/python
 import sys, random,operator,re, itertools
 class deck:
   '''
 
-  The Krypto deck consists of 56 cards: three each of numbers 1-6, four each of 
-  the numbers 7-10, two each of 11-17, one each of 18-25.
+  The Krypto deck consists of 56 cards: three each of numbers 1-6, 
+  four each of the numbers 7-10, two each of 11-17, one each of 18-25.
 
- [1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 7, 8, 9,     10, 7, 8, 9, 10, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 11, 12, 13, 14, 
-  15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
+ [1, 2, 3, 4, 5, 6,
+  1, 2, 3, 4, 5, 6, 
+  1, 2, 3, 4, 5, 6, 
+  7, 8, 9, 10, 
+  7, 8, 9, 10,
+  7, 8, 9, 10, 
+  7, 8, 9, 10,
+  11, 12, 13, 14, 15, 16, 17, 
+  11, 12, 13, 14, 15, 16, 17, 
+  18, 19, 20, 21, 22, 23, 24, 25]
   '''
   cards = range(1,7) * 3 + range(7,11)*4 + range(11,18)*2 + range(18,26)
 
   def deal(self):
-    return [2,3,6,1,4,16]
-#      return random.sample(self.cards,6)
+    return random.sample(self.cards,6)
 
-class kryptobot:
-  def __init__(self,players):
+class krypto:
+  def __init__(self,players,score_game=True):
     self.players = players
     self.d = deck()
     self.cards = []
     self.hand = 0
     self.streak = 0
     self.previous_winner = None
+    self.score_game = score_game
     self.score_pad = dict(zip(players,[[]for x in range(len(players))]))
-    self.print_cards()
+    self.deal_next()
 
   def scores(self):
     for name,score in sorted(self.score_pad.iteritems(),key=operator.itemgetter(0)):
@@ -76,6 +83,7 @@ class kryptobot:
     if correct: print "Correct!" 
     else: print "Not Correct!"
     self.score_hand(player,correct)
+    return correct
 
   def solver(self,find_all=False):
     ''' brute force approach to solving the krypto game.
@@ -179,6 +187,9 @@ class kryptobot:
     *** only and the hand is re-dealt for the remaining players. All players are then 
     *** eligible to score the next hand unless another error in "Kryptoing" occurs.
     '''
+    if not self.score_game:
+      return 
+
     if correct:
       if self.streak != 0: previous_score = self.score_pad[player][self.hand-1]
       if player == self.previous_winner:
@@ -198,18 +209,24 @@ class kryptobot:
         self.score_pad[p].append(0) 
 
   def print_cards(self):
-    print "Cards:",",".join([str(x) for x in self.cards])
+    msg = "Cards: "+" ,".join([str(x) for x in self.cards[:5]])+" Objective Card: "+str(self.cards[5])
+    print msg
+    return msg
 
   def deal_next(self):
     self.cards = self.d.deal()
-    self.hand += 1
+    if self.score_game:
+      self.hand += 1
 
   def game_over(self):
     return (self.hand == 10)
 
+  def join_game(self,player):
+    self.players.append(player)
+
 if __name__ == "__main__":
   p = ["Fred","JoeBob","LongAssName","bo"]
-  k = kryptobot(p)
+  k = krypto(p)
   print str(k)
   while not k.game_over():
     k.deal_next()
