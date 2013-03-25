@@ -90,18 +90,25 @@ class KryptoBot(irc.IRCClient):
         self.msg(channel,"Please end current game before starting a new one.");
         return
       self.krypto_game = krypto.krypto([user])
+      self.msg(channel,"New game started. You've been automatically added to the game. Waiting for others to join. Issue the 'start' command once all the players have joined.");
 
     def join_game(self,user,channel,arg):
       print "join_game called"
       if self.krypto_game == None:
         self.msg(channel,"Please start a game before joining one.");
         return
-      self.krypto_game.join(user)
+      if self.krypto_game.join(user):
+        self.msg(channel,user,"has been added to the game.");
+      else:
+        self.msg(channel,"Sorry, the game has already started.");
       
     def start_game(self,user,channel,arg):
       print "start_game called"
-      self.msg(channel,self.print_cards(user,channel,arg))
-      pass
+      if self.krypto_game.start_game():
+        self.msg(channel,self.print_cards(user,channel,arg))
+      else: 
+        self.msg(channel,"You cannot start a game that is already in progress.")
+
 
     def end_game(self,user,channel,arg):
       print "end_game called"
@@ -115,12 +122,15 @@ class KryptoBot(irc.IRCClient):
       if self.krypto_game != None:
         self.msg(channel,"Please end current game before staring a new one.");
         return
+      self.msg(channel,"New quick game started!");
       self.krypto_game = krypto.krypto([user],False)
       self.msg(channel,self.print_cards(user,channel,arg))
 
     def start_timer(self,user,channel,arg):
       print "start_timer called"
+      
       pass
+
     def guess(self,user,channel,arg):
       print "guess called"
       if self.krypto_game == None:

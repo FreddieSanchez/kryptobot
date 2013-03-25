@@ -19,7 +19,12 @@ class deck:
   cards = range(1,7) * 3 + range(7,11)*4 + range(11,18)*2 + range(18,26)
 
   def deal(self):
-    return random.sample(self.cards,6)
+#return [7 ,3 ,6 ,12 ,12, 9]
+     return [16 ,10 ,5 ,15 ,22, 9]
+#return random.sample(self.cards,6)
+
+NOT_STARTED = 0
+STARTED = 1
 
 class krypto:
   def __init__(self,players,score_game=True):
@@ -31,6 +36,7 @@ class krypto:
     self.previous_winner = None
     self.score_game = score_game
     self.score_pad = dict(zip(players,[[]for x in range(len(players))]))
+    self.state = NOT_STARTED
     self.deal_next()
 
   def scores(self):
@@ -93,19 +99,45 @@ class krypto:
         of solutions.
     '''
     ops = ["+","-","/","*"]
-    expression = ""
     solutions = []
-    for perm in itertools.permutations(self.cards[:5]):
-      for op in itertools.combinations_with_replacement(ops,4):
-        op = list(op)
-        op.append(" ")
-        expression = "".join([str(x) + str(y) for x,y in zip(perm,op)])
-        tokens = re.findall(r"[\(\)\+\-\*\/]|\d+",expression)
-        if self.eval_infix(tokens) == self.cards[5]:
-          solutions.append(expression)
-          if not find_all:
-            return solutions 
+       
+    permutations = list(itertools.permutations(self.cards[:5]))
+    for perm in permutations:
+      for p in self.associations(perm):
+        p1 = str(p).split(",")
+        for op in itertools.combinations_with_replacement(ops,4):
+          o = list(op)
+          o.append(" ")
+          expression = "".join([str(x) + str(y) for x,y in zip(p1,o)])
+          tokens = re.findall(r"[\(\)\+\-\*\/]|\d+",expression)
+          value = self.eval_infix(tokens)
+          print value
+          print expression
+          if value == self.cards[5]:
+            solutions.append(expression)
+            if not find_all:
+              return solutions
+
     return solutions 
+
+  def associations(self,seq, **kw):
+    ''' 
+        >>> associations([1,2,3,4])
+        [(1, (2, (3, 4))), (1, ((2, 3), 4)), ((1, 2), (3, 4)), ((1, (2, 3)), 4), (((1, 2), 3), 4)] 
+    '''
+    grouper = kw.get('grouper', lambda a,b:(a,b))
+    lifter = kw.get('lifter', lambda x:x)
+
+    if len(seq)==1:
+        yield lifter(seq[0])
+    else:
+        for i in range(len(seq)):
+            left,right = seq[:i],seq[i:] # split sequence on index i
+
+            # return cartesian product of left x right
+            for l in self.associations(left,**kw):
+                for r in self.associations(right,**kw):
+                    yield grouper(l,r)# (((((x + x) + x) + x) + x)
 
   def eval_infix(self,tokens):
     '''
@@ -137,11 +169,13 @@ class krypto:
           while len(stack) > 0 and stack[-1] != "(":
               out.append(stack.pop())
           if len(stack) == 0:
+            raw_input()
             return None# Error mismatched.
           if stack[-1] == "(":
             stack.pop()
     while len(stack):
       if stack[-1] == ")" or stack[-1] == "(":
+        raw_input()
         return None# error
       out.append(stack.pop())
     return self.eval_postfix(out)
@@ -158,6 +192,9 @@ class krypto:
         b = int(stack.pop())
         a = int(stack.pop())
         c  = self.calc(a,o,b)
+        if not c:
+          print "not c"
+          return 0
         stack.append(c)
       elif o.isdigit():
         stack.append(o)
@@ -167,15 +204,24 @@ class krypto:
     return int(stack.pop())    
 
   def calc(self,a,op,b):
+    result = -1
     if op == "+":
-      return a + b
-    if op == "-":
-      return a - b
-    if op == "/":
-      return a / b
-    if op == "*":
-      return a * b
+      result = a + b
+    elif op == "-":
+      result = a - b
+    elif op == "/":
+      if b == 0:
+        return False
+      q = a / b
+      result = q
+      if b * q != a:
+        return False
+    elif op == "*":
+      result = a * b
 
+    if result < 0 or a < 0 or b < 0:
+      return False
+    return result
   def score_hand(self,player,correct):
     ''':
     *** Score Keeping Rules:
@@ -219,10 +265,24 @@ class krypto:
       self.hand += 1
 
   def game_over(self):
-    return (self.hand == 10)
+    return (self.hand == 10) and self.end_game()
 
   def join_game(self,player):
-    self.players.append(player)
+    if self.state == NOT_STARTED:
+      self.players.append(player)
+      return True
+    else:
+      print player,"not joined to game"
+      return False
+  def start_game(self):
+    if self.state == NOT_STARTED:
+      self.state = STARTED
+      return True
+    return False
+
+  def end_game(self):
+    if self.state == STARTED:
+      self.state = NOT_STARTED
 
 if __name__ == "__main__":
   p = ["Fred","JoeBob","LongAssName","bo"]
