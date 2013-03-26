@@ -20,8 +20,8 @@ class deck:
 
   def deal(self):
 #return [7 ,3 ,6 ,12 ,12, 9]
-     return [16 ,10 ,5 ,15 ,22, 9]
-#return random.sample(self.cards,6)
+    return [16 ,10 ,5 ,15 ,22, 9]
+    return random.sample(self.cards,6)
 
 NOT_STARTED = 0
 STARTED = 1
@@ -37,7 +37,6 @@ class krypto:
     self.score_game = score_game
     self.score_pad = dict(zip(players,[[]for x in range(len(players))]))
     self.state = NOT_STARTED
-    self.deal_next()
 
   def scores(self):
     for name,score in sorted(self.score_pad.iteritems(),key=operator.itemgetter(0)):
@@ -89,7 +88,7 @@ class krypto:
     if correct: print "Correct!" 
     else: print "Not Correct!"
     self.score_hand(player,correct)
-    return correct
+    return correct,solution
 
   def solver(self,find_all=False):
     ''' brute force approach to solving the krypto game.
@@ -105,19 +104,17 @@ class krypto:
     for perm in permutations:
       for p in self.associations(perm):
         p1 = str(p).split(",")
-        for op in itertools.combinations_with_replacement(ops,4):
+        for op in itertools.permutations(ops,4):
           o = list(op)
           o.append(" ")
           expression = "".join([str(x) + str(y) for x,y in zip(p1,o)])
           tokens = re.findall(r"[\(\)\+\-\*\/]|\d+",expression)
           value = self.eval_infix(tokens)
-          print value
-          print expression
+          expression ="".join(tokens) 
           if value == self.cards[5]:
             solutions.append(expression)
             if not find_all:
               return solutions
-
     return solutions 
 
   def associations(self,seq, **kw):
@@ -192,8 +189,7 @@ class krypto:
         b = int(stack.pop())
         a = int(stack.pop())
         c  = self.calc(a,o,b)
-        if not c:
-          print "not c"
+        if c == None:
           return 0
         stack.append(c)
       elif o.isdigit():
@@ -211,17 +207,18 @@ class krypto:
       result = a - b
     elif op == "/":
       if b == 0:
-        return False
+        return None
       q = a / b
       result = q
       if b * q != a:
-        return False
+        return None
     elif op == "*":
       result = a * b
 
     if result < 0 or a < 0 or b < 0:
-      return False
+      return None
     return result
+
   def score_hand(self,player,correct):
     ''':
     *** Score Keeping Rules:
@@ -255,7 +252,7 @@ class krypto:
         self.score_pad[p].append(0) 
 
   def print_cards(self):
-    msg = "Cards: "+" ,".join([str(x) for x in self.cards[:5]])+" Objective Card: "+str(self.cards[5])
+    msg = "Cards: "+", ".join([str(x) for x in self.cards[:5]])+" Objective Card: "+str(self.cards[5])
     print msg
     return msg
 
@@ -266,6 +263,13 @@ class krypto:
 
   def game_over(self):
     return (self.hand == 10) and self.end_game()
+  def leave_game(self,player):
+    if self.state == NOT_STARTED and player in self.players:
+      self.players.remove(player)
+      return True
+    else:
+      print player,"not removed from game"
+      return False
 
   def join_game(self,player):
     if self.state == NOT_STARTED:
@@ -283,6 +287,11 @@ class krypto:
   def end_game(self):
     if self.state == STARTED:
       self.state = NOT_STARTED
+      return True
+    return False
+
+  def scored(self):
+    return self.score_game
 
 if __name__ == "__main__":
   p = ["Fred","JoeBob","LongAssName","bo"]
@@ -293,7 +302,7 @@ if __name__ == "__main__":
     k.print_cards()
     solution = raw_input()
     k.check_solution("Fred",solution)
-    print k.solver()
+    print k.solver(True)
     print str(k)
   
 

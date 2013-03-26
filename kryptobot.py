@@ -17,6 +17,7 @@ class KryptoBot(irc.IRCClient):
                  'join':[self.join_game,'Join the current kyrpto game.'],\
                  'start':[self.start_game,'After all players have joined, starts the krypto game.'],\
                  'end':[self.end_game,'Terminate the current krypto game'],\
+                 'scores':[self.print_scores,'Show scores!'],\
                  'quick':[self.start_quick,'Will just do a quick game of krypto. \n\
                           No scoring will be done. \n\
                           Will not wait for players to join game.\n\
@@ -53,9 +54,9 @@ class KryptoBot(irc.IRCClient):
             print msg
             self.msg(user, msg)
             return
- 
+        user = user.split("!")[0]
         # Otherwise check to see if it is a message directed at me
-        if msg.startswith(self.nickname + ":"):
+        if msg.startswith(self.nickname + ":") or msg.startswith(":"):
             func,args = self.decipher_cmd(channel,user,msg.split(":")[1].strip()) 
             if func != None:
               func(user,channel,args)
@@ -97,11 +98,22 @@ class KryptoBot(irc.IRCClient):
       if self.krypto_game == None:
         self.msg(channel,"Please start a game before joining one.");
         return
-      if self.krypto_game.join(user):
-        self.msg(channel,user,"has been added to the game.");
+      if self.krypto_game.join_game(user):
+        self.msg(channel,user+" has been added to the game.");
       else:
         self.msg(channel,"Sorry, the game has already started.");
-      
+
+    def leave_game(self,user,channel,arg):
+      print "leave_game called"
+      if self.krypto_game == None:
+        self.msg(channel,"Can't leave a game that hasn't started.");
+        return
+      if self.krypto_game.leave_game(user):
+        self.msg(channel,user,"has been removed from the game.");
+      else:
+        self.msg(channel,"Sorry, the game has already started.");
+
+
     def start_game(self,user,channel,arg):
       print "start_game called"
       if self.krypto_game.start_game():
@@ -109,12 +121,19 @@ class KryptoBot(irc.IRCClient):
       else: 
         self.msg(channel,"You cannot start a game that is already in progress.")
 
+    def print_scores(self,user,channel,arg):
+      print "print_score called"
+      if self.krypto_game != None:
+        if self.krypto_game.scored():
+          self.msg(channel,str(self.krypto_game))
+          print self.krypto_game
 
     def end_game(self,user,channel,arg):
       print "end_game called"
       if self.krypto_game != None:
-        self.msg(channel,str(self.krypto_game))
-        print self.krypto_game
+        if self.krypto_game.scored():
+          self.msg(channel,str(self.krypto_game))
+          print self.krypto_game
       self.krypto_game = None
       
     def start_quick(self,user,channel,arg):
@@ -136,18 +155,22 @@ class KryptoBot(irc.IRCClient):
       if self.krypto_game == None:
         self.msg(channel,user + ": please start a game before attempting a guess")
         return
-      if self.krypto_game.check_solution(user,arg): 
+      correct,solution = self.krypto_game.check_solution(user,arg)
+      if correct:
         self.msg(channel,"Nice job, " + user + "! You got the answer correct!")
       else:
-        self.msg(channel,"Nice try, " + user + ", but that was not a correct solution")
-        self.msg(channel,"One solution was " + str(self.krypto_game.solver()))
+        self.msg(channel,"Nice try, " + user + ", but that was not a correct solution. Your solution evaluates to:"+solution)
+        if self.krypto_game.scored():
+          self.msg(channel,"One solution was " + str(self.krypto_game.solver()))
+
       if self.krypto_game.game_over():
         self.msg(channel,"Game Over!")
         self.msg(channel,str(self.krypto_game))
         self.krypto_game = None
-      else:
+      elif correct or self.krypto_game.scored():
         self.krypto_game.deal_next()
         self.print_cards(user,channel,arg)
+         
 
       
     def solve(self,user,channel,arg):
@@ -155,7 +178,11 @@ class KryptoBot(irc.IRCClient):
       if self.krypto_game == None:
         self.msg(channel,user + ": please start a game before attempting to solve")
         return
+
+      correct,solution = self.krypto_game.check_solution(user,arg)
       self.msg(channel,str(self.krypto_game.solver()))
+      self.krypto_game.deal_next()
+      self.print_cards(user,channel,arg)
 
     def print_cards(self,user,channel,arg):
       print "print_cards called"
