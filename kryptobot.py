@@ -131,6 +131,9 @@ class KryptoBot(irc.IRCClient):
         print self.krypto_game.hand
         self.msg(channel,str(self.krypto_game))
         print self.krypto_game
+      else: 
+        self.msg(channel,"Game not scored")
+
 
     def end_game(self,user,channel,arg):
       print "end_game called"
