@@ -147,6 +147,7 @@ class KryptoBot(irc.IRCClient):
         return
       self.msg(channel,"New quick game started!");
       self.krypto_game = krypto.krypto([user],False)
+      self.krypto_game.deal_next()
       self.msg(channel,self.print_cards(user,channel,arg))
 
     def start_timer(self,user,channel,arg):
