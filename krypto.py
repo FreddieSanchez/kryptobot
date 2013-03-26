@@ -19,8 +19,6 @@ class deck:
   cards = range(1,7) * 3 + range(7,11)*4 + range(11,18)*2 + range(18,26)
 
   def deal(self):
-#return [7 ,3 ,6 ,12 ,12, 9]
-    return [16 ,10 ,5 ,15 ,22, 9]
     return random.sample(self.cards,6)
 
 NOT_STARTED = 0
@@ -35,12 +33,12 @@ class krypto:
     self.streak = 0
     self.previous_winner = None
     self.score_game = score_game
-    self.score_pad = dict(zip(players,[[]for x in range(len(players))]))
+    self.score_pad = dict(zip(players,[[0]for x in range(len(players))]))
     self.state = NOT_STARTED
 
   def scores(self):
     for name,score in sorted(self.score_pad.iteritems(),key=operator.itemgetter(0)):
-      yield name,score
+      yield name,score[1:]
 
   def __str__(self):
     namemaxlen = max(len(x) for x in self.players) + 1 
@@ -53,12 +51,11 @@ class krypto:
     out += "".join(["Hand {} | ".format(d) for d in range(1,self.hand+1)])+ "Total |\n"
 
     out += "|"+"-"*((namemaxlen) + handlen)+"|\n"
-    # scores
-    for name,scores in self.scores():
+    for name,s in self.scores():
       out += "|"+name.ljust(namemaxlen)+"|"
-      for score in scores:
+      for score in s:
         out += str(score).center(8) + "|"
-      out += str(sum(scores)).center(7)+"|\n"
+      out += str(sum(s)).center(7)+"|\n"
         
     # footer
     # '---------'
@@ -247,9 +244,10 @@ class krypto:
         self.streak = 0
     for p in self.players:
       if p == player:
-        self.score_pad[player].append(score) 
-      else:
-        self.score_pad[p].append(0) 
+        print self.score_pad
+        print self.hand
+        print p,player,p == player
+        self.score_pad[player][self.hand] = score 
 
   def print_cards(self):
     msg = "Cards: "+", ".join([str(x) for x in self.cards[:5]])+" Objective Card: "+str(self.cards[5])
@@ -260,6 +258,8 @@ class krypto:
     self.cards = self.d.deal()
     if self.score_game:
       self.hand += 1
+      for p in self.players:
+        self.score_pad[p].append(0)
 
   def game_over(self):
     return (self.hand == 10) and self.end_game()
@@ -272,15 +272,19 @@ class krypto:
       return False
 
   def join_game(self,player):
-    if self.state == NOT_STARTED:
-      self.players.append(player)
-      return True
+    if self.state == NOT_STARTED and \
+       player not in self.players and\
+       player not in score_pad.keys():
+        self.players.append(player)
+        self.score_pad[player] = [0]
+        return True
     else:
       print player,"not joined to game"
       return False
   def start_game(self):
     if self.state == NOT_STARTED:
       self.state = STARTED
+      self.deal_next()
       return True
     return False
 
@@ -295,14 +299,19 @@ class krypto:
 
 if __name__ == "__main__":
   p = ["Fred","JoeBob","LongAssName","bo"]
-  k = krypto(p)
+  k = krypto([p[0]],True)
+  for x in p[1:]:
+    print k.join_game(x)
+    print x
+  k.start_game() # deals firsthand.
+  print k.score_pad
   print str(k)
   while not k.game_over():
-    k.deal_next()
     k.print_cards()
     solution = raw_input()
     k.check_solution("Fred",solution)
     print k.solver(True)
+    k.deal_next()
     print str(k)
   
 

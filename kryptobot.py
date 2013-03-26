@@ -123,10 +123,10 @@ class KryptoBot(irc.IRCClient):
 
     def print_scores(self,user,channel,arg):
       print "print_score called"
-      if self.krypto_game != None:
-        if self.krypto_game.scored():
-          self.msg(channel,str(self.krypto_game))
-          print self.krypto_game
+      if self.krypto_game != None and self.krypto_game.scored():
+        print self.krypto_game.hand
+        self.msg(channel,str(self.krypto_game))
+        print self.krypto_game
 
     def end_game(self,user,channel,arg):
       print "end_game called"
@@ -178,9 +178,9 @@ class KryptoBot(irc.IRCClient):
       if self.krypto_game == None:
         self.msg(channel,user + ": please start a game before attempting to solve")
         return
-
-      correct,solution = self.krypto_game.check_solution(user,arg)
+      
       self.msg(channel,str(self.krypto_game.solver()))
+      self.krypto_game.score_hand(user,False)
       self.krypto_game.deal_next()
       self.print_cards(user,channel,arg)
 
