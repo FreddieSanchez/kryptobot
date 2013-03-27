@@ -19,6 +19,7 @@ class deck:
   cards = range(1,7) * 3 + range(7,11)*4 + range(11,18)*2 + range(18,26)
 
   def deal(self):
+    return [15, 6, 1, 9, 11, 1]
     return random.sample(self.cards,6)
 
 NOT_STARTED = 0
@@ -79,6 +80,7 @@ class krypto:
     correct = True
     if numbers != cards:
       correct = False
+      solution = "N/A - wrong cards used."
     else :
       solution = self.eval_infix(tokens)
     correct = (correct and solution and self.cards[5] == solution) 
@@ -101,17 +103,22 @@ class krypto:
     for perm in permutations:
       for p in self.associations(perm):
         p1 = str(p).split(",")
-        for op in itertools.permutations(ops,4):
-          o = list(op)
-          o.append(" ")
-          expression = "".join([str(x) + str(y) for x,y in zip(p1,o)])
-          tokens = re.findall(r"[\(\)\+\-\*\/]|\d+",expression)
-          value = self.eval_infix(tokens)
-          expression ="".join(tokens) 
-          if value == self.cards[5]:
-            solutions.append(expression)
-            if not find_all:
-              return solutions
+        combinations_tried = []
+        for comb in itertools.combinations_with_replacement(ops,4):
+          if comb in combinations_tried:
+            continue
+          combinations_tried.append(comb)
+          for op in itertools.permutations(comb,4):
+            o = list(op)
+            o.append(" ")
+            expression = "".join([str(x) + str(y) for x,y in zip(p1,o)])
+            tokens = re.findall(r"[\(\)\+\-\*\/]|\d+",expression)
+            value = self.eval_infix(tokens)
+            expression ="".join(tokens) 
+            if value == self.cards[5]:
+              solutions.append(expression)
+              if not find_all:
+                return solutions
     return solutions 
 
   def associations(self,seq, **kw):
@@ -232,6 +239,7 @@ class krypto:
 
     if correct:
       if self.streak != 0: previous_score = self.score_pad[player][self.hand-1]
+      else: previous = 0
       if player == self.previous_winner:
         self.streak += 1
         score = self.streak * previous_score
@@ -274,7 +282,7 @@ class krypto:
   def join_game(self,player):
     if self.state == NOT_STARTED and \
        player not in self.players and\
-       player not in score_pad.keys():
+       player not in self.score_pad.keys():
         self.players.append(player)
         self.score_pad[player] = [0]
         return True
@@ -310,7 +318,7 @@ if __name__ == "__main__":
     k.print_cards()
     solution = raw_input()
     k.check_solution("Fred",solution)
-    print k.solver(True)
+    print k.solver()
     k.deal_next()
     print str(k)
   
