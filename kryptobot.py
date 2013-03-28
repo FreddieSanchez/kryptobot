@@ -205,20 +205,10 @@ class KryptoBot(irc.IRCClient):
       if self.krypto_game == None:
         self.msg(channel,user + ": please start a game before attempting a guess")
         return
+
       print self.guesser,user
-      if self.guesser == user:
-        if self.timer != None:
-          self.timer.stop()
-          self.timer = None
-          self.guesser = None
-          print "resetting timer and guesser",self.guesser
-      elif self.guesser != None:
-        self.msg(channel,user + ", sorry you can't guess until " + self.guesser + " guesses.")
+      if not self.ok_to_guess(self,channel,user):
         return
-      else:
-        self.msg(channel,user + ", sorry you can't guess until you declare krypto")
-        return
-        
 
       correct,solution = self.krypto_game.check_solution(user,arg)
       print correct,solution
@@ -237,12 +227,29 @@ class KryptoBot(irc.IRCClient):
         self.krypto_game.deal_next()
         self.print_cards(user,channel,arg)
          
+    def ok_to_guess(self,channel,user):
+      if self.guesser == user:
+        if self.timer != None:
+          self.timer.stop()
+          self.timer = None
+          self.guesser = None
+          print "resetting timer and guesser",self.guesser
+        return True
+      elif self.guesser != None:
+        self.msg(channel,user + ", sorry you can't guess/solve until " + self.guesser + " guesses.")
+        return False
+      else:
+        self.msg(channel,user + ", sorry you can't guess/solve until you declare krypto")
+        return False
 
       
     def solve(self,user,channel,arg):
       print "solve called"
       if self.krypto_game == None:
         self.msg(channel,user + ": please start a game before attempting to solve")
+        return
+
+      if not self.ok_to_guess(self,channel,user):
         return
       
       self.msg(channel,str(self.krypto_game.solver()))
