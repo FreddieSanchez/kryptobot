@@ -19,7 +19,6 @@ class deck:
   cards = range(1,7) * 3 + range(7,11)*4 + range(11,18)*2 + range(18,26)
 
   def deal(self):
-    return [15, 6, 1, 9, 11, 1]
     return random.sample(self.cards,6)
 
 NOT_STARTED = 0
@@ -80,7 +79,7 @@ class krypto:
     correct = True
     if numbers != cards:
       correct = False
-      solution = "N/A - wrong cards used."
+      solution = 0
     else :
       solution = self.eval_infix(tokens)
     correct = (correct and solution and self.cards[5] == solution) 

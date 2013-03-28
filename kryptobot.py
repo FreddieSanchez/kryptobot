@@ -3,8 +3,34 @@ from twisted.words.protocols import irc
 from twisted.internet import reactor, protocol, ssl
  
 # system imports
+import threading
+import functools
 import time, sys, unicodedata
 import krypto
+
+class CountdownTimer(threading.Thread):
+    def __init__(self,bot,channel,user,count_down):
+      threading.Thread.__init__(self)
+      self.event = threading.Event()
+      self.count_down = count_down
+      self.bot = bot
+      self.channel = channel
+      self.user = user
+
+    def run(self):
+      while self.count_down > 0 and not self.event.is_set():
+        if self.count_down % 30 == 0:
+          self.bot.msg(self.channel,self.user+ " you have " + str(self.count_down) + " seconds left")
+        self.count_down -= 1
+        self.event.wait(1)
+
+      if not self.event.is_set():
+      # The user did not put in a guess within the time limit
+        self.bot.msg(self.channel,"Sorry " + self.user+ ", time ran out!")
+        self.bot.guess(self.user,self.channel,"0")
+
+    def stop(self):
+      self.event.set()
 
 class KryptoBot(irc.IRCClient):
     nickname = 'kryptobot' # nickname
@@ -12,6 +38,8 @@ class KryptoBot(irc.IRCClient):
     def __init__(self):
 
       self.krypto_game = None # curret kypto game
+      self.timer = None
+      self.guesser = None
       self.commands = {'help':[self.print_help,'Displays the list of commands'],\
                  'new':[self.start_new,'Initializes a new krypto game'],\
                  'join':[self.join_game,'Join the current kyrpto game.'],\
@@ -27,7 +55,10 @@ class KryptoBot(irc.IRCClient):
                  'guess':[self.guess,'if you typed in krypto, this will allow you to type in your guess.'],\
                  'solve':[self.solve,'Displays one possible solution to the current hand.'],\
                  'cards':[self.print_cards,'Displays the current set of cards again.']}
-    
+    def __get__(self, obj, objtype):
+       """Support instance methods."""
+       return functools.partial(self.__call__, obj)
+
     def connectionMade(self):
         irc.IRCClient.connectionMade(self)
         print "connectionMade"
@@ -121,7 +152,9 @@ class KryptoBot(irc.IRCClient):
         return
 
       if self.krypto_game.start_game():
-        self.msg(channel,self.print_cards(user,channel,arg))
+        for p in self.krypto_game.players:
+          self.msg(channel,p+": New Kryto Game Starting!\n")
+        self.print_cards(user,channel,arg)
       else: 
         self.msg(channel,"You cannot start a game that is already in progress.")
 
@@ -151,23 +184,48 @@ class KryptoBot(irc.IRCClient):
       self.msg(channel,"New quick game started!");
       self.krypto_game = krypto.krypto([user],False)
       self.krypto_game.deal_next()
-      self.msg(channel,self.print_cards(user,channel,arg))
+      self.print_cards(user,channel,arg)
 
     def start_timer(self,user,channel,arg):
       print "start_timer called"
-      
-      pass
+      if self.krypto_game == None:
+        self.msg(channel,user + ": please start a game before attempting to say 'Krypto!'")
+        return
+ 
+      if self.guesser != None:
+        self.msg(channel,user + ", sorry someone else already said krypto.")
+        return
+
+      self.guesser = user
+      self.timer = CountdownTimer(self,channel,user,3 * 60)
+      self.timer.start()
 
     def guess(self,user,channel,arg):
       print "guess called"
       if self.krypto_game == None:
         self.msg(channel,user + ": please start a game before attempting a guess")
         return
+      print self.guesser,user
+      if self.guesser == user:
+        if self.timer != None:
+          self.timer.stop()
+          self.timer = None
+          self.guesser = None
+          print "resetting timer and guesser",self.guesser
+      elif self.guesser != None:
+        self.msg(channel,user + ", sorry you can't guess until " + self.guesser + " guesses.")
+        return
+      else:
+        self.msg(channel,user + ", sorry you can't guess until you declare krypto")
+        return
+        
+
       correct,solution = self.krypto_game.check_solution(user,arg)
+      print correct,solution
       if correct:
         self.msg(channel,"Nice job, " + user + "! You got the answer correct!")
       else:
-        self.msg(channel,"Nice try, " + user + ", but that was not a correct solution. Your solution evaluates to:"+solution)
+        self.msg(channel,"Nice try, " + user + ", but that was not a correct solution. Your solution evaluates to:"+str(solution))
         if self.krypto_game.scored():
           self.msg(channel,"One solution was " + str(self.krypto_game.solver()))
 
