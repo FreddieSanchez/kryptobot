@@ -9,6 +9,7 @@ import time, sys, unicodedata
 import krypto
 
 class CountdownTimer(threading.Thread):
+
     def __init__(self,bot,channel,user,count_down):
       threading.Thread.__init__(self)
       self.event = threading.Event()
