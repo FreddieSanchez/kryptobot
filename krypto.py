@@ -169,13 +169,11 @@ class krypto:
           while len(stack) > 0 and stack[-1] != "(":
               out.append(stack.pop())
           if len(stack) == 0:
-            raw_input()
             return None# Error mismatched.
           if stack[-1] == "(":
             stack.pop()
     while len(stack):
       if stack[-1] == ")" or stack[-1] == "(":
-        raw_input()
         return None# error
       out.append(stack.pop())
     return self.eval_postfix(out)
