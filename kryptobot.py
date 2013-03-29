@@ -207,7 +207,7 @@ class KryptoBot(irc.IRCClient):
         return
 
       print self.guesser,user
-      if not self.ok_to_guess(self,channel,user):
+      if not self.ok_to_guess(channel,user):
         return
 
       correct,solution = self.krypto_game.check_solution(user,arg)
@@ -249,7 +249,7 @@ class KryptoBot(irc.IRCClient):
         self.msg(channel,user + ": please start a game before attempting to solve")
         return
 
-      if not self.ok_to_guess(self,channel,user):
+      if not self.ok_to_guess(channel,user):
         return
       
       self.msg(channel,str(self.krypto_game.solver()))
