@@ -2,7 +2,6 @@ import sys, random,operator,re, itertools
 
 class deck:
   '''
-
   The Krypto deck consists of 56 cards: three each of numbers 1-6, 
   four each of the numbers 7-10, two each of 11-17, one each of 18-25.
 
