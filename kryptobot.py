@@ -1,36 +1,12 @@
 # twisted imports
 from twisted.words.protocols import irc
-from twisted.internet import reactor, protocol, ssl
+from twisted.internet import reactor, protocol, ssl,task
  
 # system imports
 import threading
 import functools
 import time, sys, unicodedata
 import krypto
-
-class CountdownTimer(threading.Thread):
-    def __init__(self,bot,channel,user,count_down):
-      threading.Thread.__init__(self)
-      self.event = threading.Event()
-      self.count_down = count_down
-      self.bot = bot
-      self.channel = channel
-      self.user = user
-
-    def run(self):
-      while self.count_down > 0 and not self.event.is_set():
-        if self.count_down % 30 == 0:
-          self.bot.msg(self.channel,self.user+ " you have " + str(self.count_down) + " seconds left")
-        self.count_down -= 1
-        self.event.wait(1)
-
-      if not self.event.is_set():
-      # The user did not put in a guess within the time limit
-        self.bot.msg(self.channel,"Sorry " + self.user+ ", time ran out!")
-        self.bot.guess(self.user,self.channel,"0")
-
-    def stop(self):
-      self.event.set()
 
 class KryptoBot(irc.IRCClient):
     nickname = 'kryptobot' # nickname
@@ -40,6 +16,8 @@ class KryptoBot(irc.IRCClient):
       self.krypto_game = None # curret kypto game
       self.timer = None
       self.guesser = None
+      self.guess_time = 3 * 60
+      self.time_surpassed = 0
       self.commands = {'help':[self.print_help,'Displays the list of commands'],\
                  'new':[self.start_new,'Initializes a new krypto game'],\
                  'join':[self.join_game,'Join the current kyrpto game.'],\
@@ -87,8 +65,8 @@ class KryptoBot(irc.IRCClient):
             return
         user = user.split("!")[0]
         # Otherwise check to see if it is a message directed at me
-        if msg.startswith(self.nickname + ":") or msg.startswith(":"):
-            func,args = self.decipher_cmd(channel,user,msg.split(":")[1].strip()) 
+        if msg.startswith(self.nickname + ":") or msg.startswith("!"):
+            func,args = self.decipher_cmd(channel,user,msg.split("!")[1].strip()) 
             if func != None:
               func(user,channel,args)
             return
@@ -174,6 +152,9 @@ class KryptoBot(irc.IRCClient):
         if self.krypto_game.scored():
           self.msg(channel,str(self.krypto_game))
           print self.krypto_game
+        else:  
+          self.msg(channel,"Game ended, thanks for playing")
+
       self.krypto_game = None
       
     def start_quick(self,user,channel,arg):
@@ -186,6 +167,16 @@ class KryptoBot(irc.IRCClient):
       self.krypto_game.deal_next()
       self.print_cards(user,channel,arg)
 
+    def count_down(self,user,channel):
+      if self.time_surpassed >= self.guess_time:
+        self.time_surpassed = 0
+        self.timer = None
+        self.msg(channel,"Sorry " + user+ ", time ran out!")
+        self.guess(user,channel,"0")
+      else:  
+        self.msg(channel,user+ " you have " + str(self.guess_time - self.time_surpassed) + " seconds left")
+      self.time_surpassed += 30
+
     def start_timer(self,user,channel,arg):
       print "start_timer called"
       if self.krypto_game == None:
@@ -197,8 +188,8 @@ class KryptoBot(irc.IRCClient):
         return
 
       self.guesser = user
-      self.timer = CountdownTimer(self,channel,user,3 * 60)
-      self.timer.start()
+      self.timer = task.LoopingCall(self.count_down,user,channel)
+      self.timer.start(30)
 
     def guess(self,user,channel,arg):
       print "guess called"
