@@ -65,8 +65,8 @@ class KryptoBot(irc.IRCClient):
             return
         user = user.split("!")[0]
         # Otherwise check to see if it is a message directed at me
-        if msg.startswith(self.nickname + ":") or msg.startswith("!"):
-            func,args = self.decipher_cmd(channel,user,msg.split("!")[1].strip()) 
+        if msg.startswith(self.nickname + ":") or msg.startswith(":"):
+            func,args = self.decipher_cmd(channel,user,msg.split(":")[1].strip()) 
             if func != None:
               func(user,channel,args)
             return
