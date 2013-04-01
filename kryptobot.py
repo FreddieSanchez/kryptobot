@@ -170,6 +170,7 @@ class KryptoBot(irc.IRCClient):
     def count_down(self,user,channel):
       if self.time_surpassed >= self.guess_time:
         self.time_surpassed = 0
+        self.timer.stop()
         self.timer = None
         self.msg(channel,"Sorry " + user+ ", time ran out!")
         self.guess(user,channel,"0")
@@ -224,6 +225,7 @@ class KryptoBot(irc.IRCClient):
           self.timer.stop()
           self.timer = None
           self.guesser = None
+          self.time_surpassed = 0
           print "resetting timer and guesser",self.guesser
         return True
       elif self.guesser != None:
